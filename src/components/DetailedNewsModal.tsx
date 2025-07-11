@@ -8,7 +8,7 @@ import {
   Share2,
   Bookmark,
 } from 'lucide-react';
-import { LoadingSpinner } from '../../../pro3/src/components/LoadingSpinner';
+import { LoadingSpinner } from '../LoadingSpinner';
 
 interface DetailedNewsData {
   id: string;
