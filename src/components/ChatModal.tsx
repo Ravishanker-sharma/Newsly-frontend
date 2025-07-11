@@ -135,6 +135,7 @@ export function ChatModal({ isOpen, onClose, userId, newsId, newsHeadline }: Cha
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
         },
       });
 
