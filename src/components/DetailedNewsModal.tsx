@@ -42,7 +42,7 @@ export function DetailedNewsModal({
 
   const hasFetchedRef = useRef(false);
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://4448578b27fc.ngrok-free.app';
 
   useEffect(() => {
     if (isOpen && newsId && !hasFetchedRef.current) {

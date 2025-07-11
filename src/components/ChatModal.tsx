@@ -63,7 +63,7 @@ export function ChatModal({ isOpen, onClose, userId, newsId, newsHeadline }: Cha
   const inputRef = useRef<HTMLInputElement>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://4448578b27fc.ngrok-free.app';
 
   // Extract key words from headline (4-5 words)
   const extractKeywords = (headline: string): string[] => {
