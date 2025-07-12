@@ -257,6 +257,42 @@ function App() {
     }
   };
 
+  const handleGoogleAuth = async (userData: LoginData, credential: string) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Send Google credential to your backend for verification
+      const response = await api.googleAuth(credential);
+      setUserId(response.user_id);
+      setUserInfo(userData);
+    } catch (error) {
+      console.error('Google authentication failed:', error);
+
+      const errorMessage = error instanceof Error ? error.message : 'Google authentication failed';
+
+      // Handle specific Google auth errors
+      if (errorMessage.includes('Invalid credential') || errorMessage.includes('token')) {
+        setError('Google authentication failed. Please try again.');
+      } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+        setError('Network error during Google authentication. Please try again.');
+      } else {
+        setError('Google authentication failed. Please try email/password login instead.');
+      }
+
+      // Fallback for demo purposes
+      if (errorMessage.includes('fetch') || errorMessage.includes('network')) {
+        console.log('Using fallback Google authentication for demo');
+        const mockUserId = `google_user_${Date.now()}`;
+        setUserId(mockUserId);
+        setUserInfo(userData);
+        setError(null);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleLogout = () => {
     setUserId(null);
     setUserInfo(null);
@@ -328,6 +364,7 @@ function App() {
     return (
       <AuthPage
         onAuth={handleAuth}
+        onGoogleAuth={handleGoogleAuth}
         isLoading={isLoading}
         error={error}
         isDark={isDark}

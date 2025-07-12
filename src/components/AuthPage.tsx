@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { User, Mail, Calendar, Eye, EyeOff, AlertCircle, Newspaper } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
+import { GoogleSignInButton } from './GoogleSignInButton';
 import { LoginData } from '../types';
 
 interface AuthPageProps {
   onAuth: (userData: LoginData & { password: string }, isSignup: boolean) => void;
+  onGoogleAuth?: (userData: LoginData, credential: string) => void;
   isLoading: boolean;
   error?: string | null;
   isDark: boolean;
   onToggleTheme: () => void;
 }
 
-export function AuthPage({ onAuth, isLoading, error, isDark, onToggleTheme }: AuthPageProps) {
+export function AuthPage({ onAuth, onGoogleAuth, isLoading, error, isDark, onToggleTheme }: AuthPageProps) {
   const [isSignup, setIsSignup] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -155,6 +157,12 @@ export function AuthPage({ onAuth, isLoading, error, isDark, onToggleTheme }: Au
     });
   };
 
+  const handleGoogleAuth = (userData: LoginData, credential: string) => {
+    if (onGoogleAuth) {
+      onGoogleAuth(userData, credential);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4 transition-colors duration-300">
       <div className="w-full max-w-md">
@@ -199,6 +207,28 @@ export function AuthPage({ onAuth, isLoading, error, isDark, onToggleTheme }: Au
               </div>
             </div>
           )}
+
+          {/* Google Sign-In Button */}
+          <div className="mb-6">
+            <GoogleSignInButton
+              onGoogleAuth={handleGoogleAuth}
+              isLoading={isLoading}
+              isDark={isDark}
+              disabled={isLoading}
+            />
+          </div>
+
+          {/* Divider */}
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300 dark:border-gray-600" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                Or continue with email
+              </span>
+            </div>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {isSignup && (
