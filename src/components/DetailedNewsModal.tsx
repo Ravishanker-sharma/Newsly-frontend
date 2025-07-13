@@ -163,7 +163,7 @@ Environmental groups have hailed the agreement as a "turning point" in the fight
           </div>
 
           <div className="flex items-center space-x-2">
-            {newsData && (
+            {/* {newsData && (
               <>
                 <button
                   onClick={handleShare}
@@ -185,7 +185,7 @@ Environmental groups have hailed the agreement as a "turning point" in the fight
                   <Bookmark className="w-5 h-5" />
                 </button>
               </>
-            )}
+            )} */}
 
             <button
               onClick={onClose}
