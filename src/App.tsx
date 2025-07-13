@@ -11,6 +11,7 @@ import { LoadingSpinner } from './components/LoadingSpinner';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { api } from './utils/api';
 import { NewsSection, NewsItem, LoginData, FeedbackData } from './types';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
 // Extended interface for authentication
 interface AuthData extends LoginData {
@@ -69,7 +70,7 @@ function App() {
   const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null);
   const [selectedNewsHeadline, setSelectedNewsHeadline] = useState<string | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<{url: string; headline: string; source?: string} | null>(null);
+  const [selectedImage, setSelectedImage] = useState<{ url: string; headline: string; source?: string } | null>(null);
   const [isDetailedModalOpen, setIsDetailedModalOpen] = useState(false);
   const [selectedDetailedNewsId, setSelectedDetailedNewsId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -265,9 +266,9 @@ function App() {
     try {
       // Send Google credential to your backend for verification
       console.log('Calling api.googleAuth...');
-      const response = await api.googleAuth(credential);
-      console.log('Google authentication response:', response);
-      setUserId(response.user_id);
+      // const response = await api.googleAuth(credential);
+      // console.log('Google authentication response:', response);
+      // setUserId(response.user_id);
       setUserInfo(userData);
       console.log('Google authentication successful, user set');
     } catch (error) {
@@ -366,14 +367,16 @@ function App() {
   // Show auth page if user is not logged in
   if (!userId) {
     return (
-      <AuthPage
-        onAuth={handleAuth}
-        onGoogleAuth={handleGoogleAuth}
-        isLoading={isLoading}
-        error={error}
-        isDark={isDark}
-        onToggleTheme={toggleTheme}
-      />
+      <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+        <AuthPage
+          onAuth={handleAuth}
+          onGoogleAuth={handleGoogleAuth}
+          isLoading={isLoading}
+          error={error}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
+        />
+      </GoogleOAuthProvider>
     );
   }
 
@@ -589,8 +592,8 @@ function App() {
         isOpen={isChatOpen}
         onClose={handleChatClose}
         userId={userId}
-        newsId={selectedNewsId}
-        newsHeadline={selectedNewsHeadline}
+        newsId={selectedNewsId || ''}
+        newsHeadline={selectedNewsHeadline || ''}
       />
 
       {/* Image Modal */}
