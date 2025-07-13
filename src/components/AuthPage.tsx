@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { User, Mail, Calendar, Eye, EyeOff, AlertCircle, Newspaper } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
-import { GoogleSignInButton } from './GoogleSignInButton';
 import { LoginData } from '../types';
+import { GoogleLogin } from '@react-oauth/google';
+import { validateGoogleCredential, sanitizeGoogleUser, estimateUserAge } from '../services/googleAuth';
+
 
 interface AuthPageProps {
   onAuth: (userData: LoginData & { password: string }, isSignup: boolean) => void;
@@ -210,11 +212,45 @@ export function AuthPage({ onAuth, onGoogleAuth, isLoading, error, isDark, onTog
 
           {/* Google Sign-In Button */}
           <div className="mb-6">
-            <GoogleSignInButton
+            {/* <GoogleSignInButton
               onGoogleAuth={handleGoogleAuth}
               isLoading={isLoading}
               isDark={isDark}
               disabled={isLoading}
+            /> */}
+
+            <GoogleLogin
+              onSuccess={credentialResponse => {
+                console.log(credentialResponse);
+
+                try {
+                  const user = validateGoogleCredential(credentialResponse.credential || '');
+                  if (!user) {
+                    console.log('Invalid Google credentials. Please try again.');
+                    return;
+                  }
+            
+                  if (!user.email_verified) {
+                    console.log('Google account email is not verified.');
+                    return;
+                  }
+            
+                  const cleanUser = sanitizeGoogleUser(user);
+                  const loginData: LoginData = {
+                    fullName: cleanUser.name,
+                    email: cleanUser.email,
+                    age: estimateUserAge(cleanUser),
+                  };
+                  console.log('loginData', loginData);
+                  onGoogleAuth?.(loginData, credentialResponse.credential || '');
+                } catch (err) {
+                  console.error('Google Sign-In error:', err);
+                  // setError('Something went wrong during authentication.');
+                }
+              }}
+              onError={() => {
+                console.log('Login Failed');
+              }}
             />
           </div>
 
@@ -285,9 +321,8 @@ export function AuthPage({ onAuth, onGoogleAuth, isLoading, error, isDark, onTog
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
-                    validationErrors.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                  }`}
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${validationErrors.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                    }`}
                   placeholder="Enter your email"
                 />
               </div>
@@ -307,9 +342,8 @@ export function AuthPage({ onAuth, onGoogleAuth, isLoading, error, isDark, onTog
                   value={formData.password}
                   onChange={handleChange}
                   required
-                  className={`w-full pl-4 pr-10 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
-                    validationErrors.password ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                  }`}
+                  className={`w-full pl-4 pr-10 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${validationErrors.password ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                    }`}
                   placeholder={isSignup ? "Enter your password (min 8 characters)" : "Enter your password"}
                 />
                 <button
@@ -334,12 +368,10 @@ export function AuthPage({ onAuth, onGoogleAuth, isLoading, error, isDark, onTog
                     ))}
                   </div>
                   <div className="mt-2 flex items-center space-x-2">
-                    <div className={`w-2 h-2 rounded-full ${
-                      getPasswordStrengthDetails(formData.password).allMet ? 'bg-green-500' : 'bg-red-500'
-                    }`} />
-                    <span className={`text-xs ${
-                      getPasswordStrengthDetails(formData.password).allMet ? 'text-green-500' : 'text-red-500'
-                    }`}>
+                    <div className={`w-2 h-2 rounded-full ${getPasswordStrengthDetails(formData.password).allMet ? 'bg-green-500' : 'bg-red-500'
+                      }`} />
+                    <span className={`text-xs ${getPasswordStrengthDetails(formData.password).allMet ? 'text-green-500' : 'text-red-500'
+                      }`}>
                       {getPasswordStrengthDetails(formData.password).allMet ? 'Strong password ✓' : 'Weak password'}
                     </span>
                   </div>
@@ -359,9 +391,8 @@ export function AuthPage({ onAuth, onGoogleAuth, isLoading, error, isDark, onTog
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     required
-                    className={`w-full pl-4 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
-                      validationErrors.confirmPassword ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    }`}
+                    className={`w-full pl-4 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${validationErrors.confirmPassword ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                      }`}
                     placeholder="Confirm your password"
                   />
                 </div>
