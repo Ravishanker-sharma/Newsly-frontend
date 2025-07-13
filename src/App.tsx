@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Menu, MessageCircle, LogOut, Newspaper } from 'lucide-react';
+import { Menu, MessageCircle, LogOut, Newspaper, RefreshCw } from 'lucide-react';
 import { AuthPage } from './components/AuthPage';
 import { Sidebar } from './components/Sidebar';
 import { NewsCard } from './components/NewsCard';
@@ -258,14 +258,18 @@ function App() {
   };
 
   const handleGoogleAuth = async (userData: LoginData, credential: string) => {
+    console.log('handleGoogleAuth called with:', { userData, credentialLength: credential.length });
     setIsLoading(true);
     setError(null);
 
     try {
       // Send Google credential to your backend for verification
+      console.log('Calling api.googleAuth...');
       const response = await api.googleAuth(credential);
+      console.log('Google authentication response:', response);
       setUserId(response.user_id);
       setUserInfo(userData);
+      console.log('Google authentication successful, user set');
     } catch (error) {
       console.error('Google authentication failed:', error);
 
@@ -386,35 +390,38 @@ function App() {
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0 lg:ml-80">
           {/* Header */}
-          <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex-shrink-0 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+          <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0 shadow-sm relative">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+              {/* Top row for mobile: Title and menu button */}
+              <div className="flex items-center justify-between sm:justify-start">
                 <button
                   onClick={() => setIsSidebarOpen(true)}
                   className="lg:hidden p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:bg-gray-700 transition-colors"
                 >
                   <Menu className="w-5 h-5" />
                 </button>
-                <div>
+                <div className="flex-1 sm:flex-none">
                   <div className="flex items-center space-x-2">
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white capitalize">
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white capitalize">
                       {activeSection.replace('-', ' ')}
                     </h2>
-                    <Newspaper className="w-6 h-6 text-blue-600" />
+                    <Newspaper className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
                     Stay informed with the latest news
                   </p>
                 </div>
                 {isLoadingNews && (
-                  <div className="flex items-center space-x-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2">
+                  <div className="flex items-center space-x-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg px-2 sm:px-3 py-1 sm:py-2">
                     <LoadingSpinner size="sm" />
-                    <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">Loading...</span>
+                    <span className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 font-medium">Loading...</span>
                   </div>
                 )}
               </div>
-              <div className="flex items-center space-x-3">
-                {/* User Info */}
+
+              {/* Bottom row for mobile: Action buttons */}
+              <div className="flex items-center justify-between sm:justify-end space-x-2 sm:space-x-3">
+                {/* User Info - Hidden on mobile, shown on sm+ */}
                 <div className="hidden sm:flex items-center space-x-3 bg-gray-50 dark:bg-gray-700 rounded-lg px-3 py-2">
                   <div className="text-right">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -431,39 +438,45 @@ function App() {
                   </div>
                 </div>
 
-                {/* Chat Button */}
-                <button
-                  onClick={() => handleChatOpen()}
-                  className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-                  title="Open Chat Assistant"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                </button>
+                {/* Action buttons - Absolute positioned on mobile */}
+                <div className="absolute right-0 top-0 sm:relative flex items-center space-x-2 sm:space-x-3">
+                  {/* Chat Button */}
+                  <button
+                    onClick={() => handleChatOpen()}
+                    className="p-1.5 sm:p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                    title="Open Chat Assistant"
+                  >
+                    <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
 
-                <button
-                  onClick={handleRefresh}
-                  className="px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
-                  disabled={isLoadingNews}
-                >
-                  Refresh
-                </button>
+                  {/* Refresh Button - Icon only on mobile */}
+                  <button
+                    onClick={handleRefresh}
+                    className="p-1.5 sm:p-2 rounded-lg bg-green-600 hover:bg-green-700 text-white transition-colors"
+                    disabled={isLoadingNews}
+                    title="Refresh News"
+                  >
+                    <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
 
-                <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
+                  {/* Theme Toggle */}
+                  <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
 
-                {/* Logout Button */}
-                <button
-                  onClick={handleLogout}
-                  className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors"
-                  title="Logout"
-                >
-                  <LogOut className="w-5 h-5" />
-                </button>
+                  {/* Logout Button */}
+                  <button
+                    onClick={handleLogout}
+                    className="p-1.5 sm:p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors"
+                    title="Logout"
+                  >
+                    <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* Error Banner */}
             {error && (
-              <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+              <div className="mt-3 sm:mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                 <p className="text-sm text-amber-800 dark:text-amber-200">{error}</p>
               </div>
             )}
