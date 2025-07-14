@@ -13,12 +13,12 @@ import { api } from './utils/api';
 import { NewsSection, NewsItem, LoginData, FeedbackData } from './types';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
-// Extended interface for authentication
+const BACKEND_URL = import.meta.env.VITE_API_BASE_URL;
+
 interface AuthData extends LoginData {
   password: string;
 }
 
-// Mock data for demonstration (fallback when API is not available)
 const mockNews: NewsItem[] = [
   {
     id: '1',
@@ -60,7 +60,7 @@ function App() {
   const [userId, setUserId] = useLocalStorage<string | null>('user_id', null);
   const [userInfo, setUserInfo] = useLocalStorage<LoginData | null>('user_info', null);
   const [isDark, setIsDark] = useLocalStorage('dark_mode', false);
-  const [activeSection, setActiveSection] = useState<NewsSection>('for-you');
+  const [activeSection, setActiveSection] = useState<NewsSection>('world');
   const [news, setNews] = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingNews, setIsLoadingNews] = useState(false);
@@ -78,11 +78,9 @@ function App() {
   const [currentPage, setCurrentPage] = useState(1);
   const [lastFetchTime, setLastFetchTime] = useState<Record<string, number>>({});
 
-  // Refs for infinite scroll
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  // Apply dark mode class to document
   useEffect(() => {
     if (isDark) {
       document.documentElement.classList.add('dark');
@@ -91,18 +89,14 @@ function App() {
     }
   }, [isDark]);
 
-  // Reset pagination when section changes
   useEffect(() => {
     if (userId) {
       resetAndFetchNews(activeSection);
     }
   }, [activeSection, userId]);
 
-  // Set up intersection observer for infinite scroll
   useEffect(() => {
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-    }
+    if (observerRef.current) observerRef.current.disconnect();
 
     observerRef.current = new IntersectionObserver(
       (entries) => {
@@ -111,21 +105,14 @@ function App() {
           loadMoreNews();
         }
       },
-      {
-        threshold: 0.1,
-        rootMargin: '100px',
-      }
+      { threshold: 0.1, rootMargin: '100px' }
     );
 
     if (loadMoreRef.current) {
       observerRef.current.observe(loadMoreRef.current);
     }
 
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
+    return () => observerRef.current?.disconnect();
   }, [hasMoreNews, isLoadingMore, isLoadingNews]);
 
   const resetAndFetchNews = async (section: NewsSection) => {
@@ -137,85 +124,80 @@ function App() {
   };
 
   const fetchNews = async (section: NewsSection, page: number = 1, isInitial: boolean = false) => {
-    if (isInitial) {
-      setIsLoadingNews(true);
-    } else {
-      setIsLoadingMore(true);
-    }
+  if (isInitial) setIsLoadingNews(true);
+  else setIsLoadingMore(true);
 
-    setError(null);
+  setError(null);
 
-    // Check if we recently fetched this section (avoid spam refreshing)
-    const lastFetch = lastFetchTime[`${section}_${page}`];
-    const now = Date.now();
-    if (!isInitial && lastFetch && (now - lastFetch) < 5000) { // 5 seconds cooldown
-      if (isInitial) {
-        setIsLoadingNews(false);
-      } else {
-        setIsLoadingMore(false);
-      }
+  const lastFetch = lastFetchTime[`${section}_${page}`];
+  const now = Date.now();
+  if (!isInitial && lastFetch && now - lastFetch < 5000) {
+    if (isInitial) setIsLoadingNews(false);
+    else setIsLoadingMore(false);
+    return;
+  }
+
+  try {
+    let newsData: NewsItem[] = [];
+
+    // ✅ BLOCK guests from accessing "for-you" section without hitting backend
+    if (section === 'for-you' && userId?.startsWith('guest_')) {
+      setNews([]);
+      setHasMoreNews(false);
+      setError('🚫 Sign in with Google to access personalized "For You" news.');
       return;
     }
 
-    try {
-      // Always include user_id when fetching news
-      const newsData = userId
+    // ✅ Proceed normally for others
+    if (section === 'for-you') {
+      const response = await fetch(`${BACKEND_URL}/api/news?section=${section}&user_id=${userId}&page=${page}&limit=50`);
+      newsData = await response.json();
+    } else {
+      newsData = userId
         ? await api.fetchUserNews(userId, section, page)
         : await api.fetchNews(section, page);
-
-      if (newsData.length === 0) {
-        // No more news available
-        setHasMoreNews(false);
-      } else {
-        if (isInitial) {
-          setNews(newsData);
-        } else {
-          setNews(prev => [...prev, ...newsData]);
-        }
-        setCurrentPage(page);
-        setLastFetchTime(prev => ({ ...prev, [`${section}_${page}`]: now }));
-      }
-    } catch (error) {
-      console.error('Failed to fetch news:', error);
-      setError('Failed to load news. Using cached content.');
-
-      // Fallback to mock data only for initial load
-      if (isInitial) {
-        const fallbackNews = mockNews.filter(item => section === 'for-you' || item.section === section);
-        setNews(fallbackNews);
-        setHasMoreNews(false); // Don't try to load more with mock data
-      }
-    } finally {
-      if (isInitial) {
-        setIsLoadingNews(false);
-      } else {
-        setIsLoadingMore(false);
-      }
     }
-  };
+
+    if (newsData.length === 0) {
+      setHasMoreNews(false);
+    } else {
+      if (isInitial) setNews(newsData);
+      else setNews((prev) => [...prev, ...newsData]);
+
+      setCurrentPage(page);
+      setLastFetchTime((prev) => ({ ...prev, [`${section}_${page}`]: now }));
+    }
+  } catch (error) {
+    console.error('Failed to fetch news:', error);
+    setError('Failed to load news. Showing fallback content.');
+
+    if (isInitial) {
+      const fallbackNews = mockNews.filter(item => section === 'for-you' || item.section === section);
+      setNews(fallbackNews);
+      setHasMoreNews(false);
+    }
+  } finally {
+    if (isInitial) setIsLoadingNews(false);
+    else setIsLoadingMore(false);
+  }
+};
 
   const loadMoreNews = useCallback(() => {
     if (!hasMoreNews || isLoadingMore || isLoadingNews) return;
-
     const nextPage = currentPage + 1;
     fetchNews(activeSection, nextPage, false);
   }, [activeSection, currentPage, hasMoreNews, isLoadingMore, isLoadingNews]);
 
-  // Filter news by active section
-  const filteredNews = news.filter(item =>
-    activeSection === 'for-you' || item.section === activeSection
-  );
+  const filteredNews = news.filter(item => activeSection === 'for-you' || item.section === activeSection);
 
   const handleAuth = async (authData: AuthData, isSignup: boolean) => {
     setIsLoading(true);
     setError(null);
-
     try {
       const response = isSignup
         ? await api.register(authData)
         : await api.login(authData);
       setUserId(response.user_id);
-      // Store user info without password
       setUserInfo({
         fullName: authData.fullName,
         age: authData.age,
@@ -223,27 +205,17 @@ function App() {
       });
     } catch (error) {
       console.error(`${isSignup ? 'Signup' : 'Signin'} failed:`, error);
-
-      // Extract meaningful error message
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 
-      // Set specific error messages based on common scenarios
-      if (errorMessage.includes('already exists') || errorMessage.includes('already registered')) {
-        setError('An account with this email already exists. Please try logging in instead.');
-      } else if (errorMessage.includes('Invalid email or password') || errorMessage.includes('not found') || errorMessage.includes('incorrect')) {
-        setError('Invalid email or password. Please check your credentials and try again.');
-      } else if (errorMessage.includes('validation') || errorMessage.includes('required')) {
-        setError('Please check your input and ensure all fields are filled correctly.');
-      } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
-        setError('Network error. Please check your connection and try again.');
+      if (errorMessage.includes('already exists')) {
+        setError('Account already exists. Please log in.');
+      } else if (errorMessage.includes('Invalid')) {
+        setError('Invalid credentials.');
       } else {
         setError(errorMessage);
       }
 
-      // Fallback for demo purposes
-      // Only use fallback if it's a network error, not authentication error
-      if (errorMessage.includes('fetch') || errorMessage.includes('network') || errorMessage.includes('Failed to fetch')) {
-        console.log('Using fallback authentication for demo');
+      if (errorMessage.includes('fetch') || errorMessage.includes('network')) {
         const mockUserId = `user_${Date.now()}`;
         setUserId(mockUserId);
         setUserInfo({
@@ -251,7 +223,7 @@ function App() {
           age: authData.age,
           email: authData.email
         });
-        setError(null); // Clear error if using fallback
+        setError(null);
       }
     } finally {
       setIsLoading(false);
@@ -259,43 +231,39 @@ function App() {
   };
 
   const handleGoogleAuth = async (userData: LoginData, credential: string) => {
-    console.log('handleGoogleAuth called with:', { userData, credentialLength: credential.length });
     setIsLoading(true);
     setError(null);
-
     try {
-      // Send Google credential to your backend for verification
-      console.log('Calling api.googleAuth...');
-      // const response = await api.googleAuth(credential);
-      // console.log('Google authentication response:', response);
-      // setUserId(response.user_id);
-      setUserInfo(userData);
-      console.log('Google authentication successful, user set');
+      const response = await fetch(`${BACKEND_URL}/api/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential, ...userData })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Google auth failed');
+
+      setUserId(data.user.user_id || `google_user_${Date.now()}`);
+      setUserInfo({
+        fullName: userData.fullName,
+        age: userData.age,
+        email: userData.email
+      });
     } catch (error) {
-      console.error('Google authentication failed:', error);
-
-      const errorMessage = error instanceof Error ? error.message : 'Google authentication failed';
-
-      // Handle specific Google auth errors
-      if (errorMessage.includes('Invalid credential') || errorMessage.includes('token')) {
-        setError('Google authentication failed. Please try again.');
-      } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
-        setError('Network error during Google authentication. Please try again.');
-      } else {
-        setError('Google authentication failed. Please try email/password login instead.');
-      }
-
-      // Fallback for demo purposes
-      if (errorMessage.includes('fetch') || errorMessage.includes('network')) {
-        console.log('Using fallback Google authentication for demo');
-        const mockUserId = `google_user_${Date.now()}`;
-        setUserId(mockUserId);
-        setUserInfo(userData);
-        setError(null);
-      }
+      console.error('Google Auth error:', error);
+      setError('Google authentication failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleGuestAuth = () => {
+    const guestId = `guest_${Date.now()}`;
+    setUserId(guestId);
+    setUserInfo({
+      fullName: 'Guest User',
+      age: 0,
+      email: 'guest@Newsly.Ai'
+    });
   };
 
   const handleLogout = () => {
@@ -312,16 +280,14 @@ function App() {
   const handleFeedback = async (feedbackData: FeedbackData) => {
     try {
       await api.submitFeedback(feedbackData);
-      console.log('Feedback submitted successfully');
     } catch (error) {
       console.error('Feedback submission failed:', error);
-      // Could show a toast notification here
     }
   };
 
   const handleSectionChange = (section: NewsSection) => {
     setActiveSection(section);
-    setIsSidebarOpen(false); // Close sidebar on mobile after selection
+    setIsSidebarOpen(false);
   };
 
   const handleChatOpen = (newsId?: string, newsHeadline?: string) => {
@@ -364,13 +330,13 @@ function App() {
     setIsDark(!isDark);
   };
 
-  // Show auth page if user is not logged in
   if (!userId) {
     return (
       <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
         <AuthPage
           onAuth={handleAuth}
           onGoogleAuth={handleGoogleAuth}
+          onGuestAuth={handleGuestAuth} // ✅ Pass guest handler here
           isLoading={isLoading}
           error={error}
           isDark={isDark}
@@ -380,7 +346,10 @@ function App() {
     );
   }
 
-  return (
+  // 🔽 everything after this remains the same (UI rendering)
+  // ...
+  // (You can keep the rest of the rendering logic as-is)
+    return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
       <div className="flex h-screen">
         <Sidebar
@@ -395,7 +364,6 @@ function App() {
           {/* Header */}
           <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0 shadow-sm relative">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-              {/* Top row for mobile: Title and menu button */}
               <div className="flex items-center justify-between sm:justify-start">
                 <button
                   onClick={() => setIsSidebarOpen(true)}
@@ -422,9 +390,7 @@ function App() {
                 )}
               </div>
 
-              {/* Bottom row for mobile: Action buttons */}
               <div className="flex items-center justify-between sm:justify-end space-x-2 sm:space-x-3">
-                {/* User Info - Hidden on mobile, shown on sm+ */}
                 <div className="hidden sm:flex items-center space-x-3 bg-gray-50 dark:bg-gray-700 rounded-lg px-3 py-2">
                   <div className="text-right">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -434,16 +400,23 @@ function App() {
                       {userInfo?.email}
                     </p>
                   </div>
-                  <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                    <span className="text-sm font-bold text-white">
-                      {userInfo?.fullName?.charAt(0).toUpperCase() || 'U'}
-                    </span>
-                  </div>
+                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-blue-600 flex items-center justify-center">
+  {userInfo?.picture ? (
+    <img
+      src={userInfo.picture}
+      alt="User"
+      className="w-full h-full object-cover"
+    />
+  ) : (
+    <span className="text-sm font-bold text-white">
+      {userInfo?.fullName?.charAt(0).toUpperCase() || 'U'}
+    </span>
+  )}
+</div>
+
                 </div>
 
-                {/* Action buttons - Absolute positioned on mobile */}
                 <div className="absolute right-0 top-0 sm:relative flex items-center space-x-2 sm:space-x-3">
-                  {/* Chat Button */}
                   <button
                     onClick={() => handleChatOpen()}
                     className="p-1.5 sm:p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
@@ -452,7 +425,6 @@ function App() {
                     <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
 
-                  {/* Refresh Button - Icon only on mobile */}
                   <button
                     onClick={handleRefresh}
                     className="p-1.5 sm:p-2 rounded-lg bg-green-600 hover:bg-green-700 text-white transition-colors"
@@ -462,10 +434,8 @@ function App() {
                     <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
 
-                  {/* Theme Toggle */}
                   <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
 
-                  {/* Logout Button */}
                   <button
                     onClick={handleLogout}
                     className="p-1.5 sm:p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors"
@@ -477,7 +447,6 @@ function App() {
               </div>
             </div>
 
-            {/* Error Banner */}
             {error && (
               <div className="mt-3 sm:mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                 <p className="text-sm text-amber-800 dark:text-amber-200">{error}</p>
@@ -618,6 +587,7 @@ function App() {
       )}
     </div>
   );
+
 }
 
 export default App;

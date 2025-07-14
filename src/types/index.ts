@@ -24,6 +24,7 @@ export interface LoginData {
   fullName: string;
   age: number;
   email: string;
+  picture?: string;
 }
 
 export interface FeedbackData {

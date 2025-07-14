@@ -143,6 +143,29 @@ Environmental groups have hailed the agreement as a "turning point" in the fight
   };
 
   if (!isOpen) return null;
+  // 🚫 If guest, block access to detailed view
+if (isOpen && userId?.startsWith('guest_')) {
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+      onClick={handleBackdropClick}
+    >
+      <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-md p-6 shadow-xl border border-gray-200 dark:border-gray-700 text-center space-y-4">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Unlock Full Article</h2>
+        <p className="text-gray-600 dark:text-gray-400">
+          To view the complete news coverage, please sign in with your Google account.
+        </p>
+        <button
+          onClick={onClose}
+          className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
 
   return (
     <div
@@ -264,7 +287,7 @@ Environmental groups have hailed the agreement as a "turning point" in the fight
                 <img
                   src={newsData.imageUrl}
                   alt={newsData.headline}
-                  className="w-full h-64 object-cover"
+                  className="w-full h-300 object-cover"
                 />
               </div>
 
