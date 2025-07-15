@@ -58,7 +58,7 @@ export function Sidebar({ activeSection, onSectionChange, isOpen, onToggle }: Si
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">
                 Newsly
               </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Stay informed</p>
+              {/*<p className="text-sm text-gray-600 dark:text-gray-400">Stay informed</p>*/}
             </div>
           </div>
           <button
@@ -114,14 +114,14 @@ export function Sidebar({ activeSection, onSectionChange, isOpen, onToggle }: Si
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-            <h3 className="font-medium text-gray-900 dark:text-white mb-2">Stay Updated</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-              Discover the world's most important stories, curated just for you.
-            </p>
-          </div>
-        </div>
+        {/*<div className="p-4 border-t border-gray-200 dark:border-gray-700">*/}
+        {/*  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">*/}
+        {/*    <h3 className="font-medium text-gray-900 dark:text-white mb-2">Stay Updated</h3>*/}
+        {/*    <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">*/}
+        {/*      Discover the world's most important stories, curated just for you.*/}
+        {/*    </p>*/}
+        {/*  </div>*/}
+        {/*</div>*/}
       </div>
     </>
   );
