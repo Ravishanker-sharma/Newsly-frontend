@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Menu, MessageCircle, LogOut, Newspaper, RefreshCw } from 'lucide-react';
 import { AuthPage } from './components/AuthPage';
+import { Menu, MessageCircle, LogOut, Newspaper, RefreshCw, Search } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { NewsCard } from './components/NewsCard';
 import { ChatModal } from './components/ChatModal';
@@ -12,6 +12,7 @@ import { useLocalStorage } from './hooks/useLocalStorage';
 import { api } from './utils/api';
 import { NewsSection, NewsItem, LoginData, FeedbackData } from './types';
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { SearchModal } from './components/SearchModal';
 
 const BACKEND_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -77,7 +78,7 @@ function App() {
   const [hasMoreNews, setHasMoreNews] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [lastFetchTime, setLastFetchTime] = useState<Record<string, number>>({});
-
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
@@ -371,6 +372,7 @@ function App() {
                 >
                   <Menu className="w-5 h-5" />
                 </button>
+
                 <div className="flex-1 sm:flex-none">
                   <div className="flex items-center space-x-2">
                     <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white capitalize">
@@ -417,6 +419,13 @@ function App() {
                 </div>
 
                 <div className="absolute right-0 top-0 sm:relative flex items-center space-x-2 sm:space-x-3">
+                  <button
+                    onClick={() => setIsSearchModalOpen(true)}
+                    className="p-1.5 sm:p-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-white transition-colors"
+                    title="Search"
+                  >
+                    <Search className="w-5 h-5" />
+                  </button>
                   <button
                     onClick={() => handleChatOpen()}
                     className="p-1.5 sm:p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
@@ -585,6 +594,7 @@ function App() {
           userId={userId}
         />
       )}
+      <SearchModal isOpen={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} />
     </div>
   );
 
