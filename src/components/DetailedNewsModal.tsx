@@ -39,21 +39,39 @@ export function DetailedNewsModal({
   const [error, setError] = useState<string | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const userScrolledRef = useRef(false);
+  const hasFetchedRef = useRef(false);
 
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://4448578b27fc.ngrok-free.app';
 
   useEffect(() => {
-    if (isOpen && newsId) {
+    if (isOpen && newsId && !hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+      
+      // Reset state when modal opens
+      setContent('');
+      setDone(false);
+      setError(null);
+      setIsLoading(false);
+      
+      // Fetch data only once
       fetchDetailedNews();
     }
   }, [isOpen, newsId]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      hasFetchedRef.current = false;
+    }
+  }, [isOpen]);
+
 
   // Clean content function to remove Python code blocks and format markdown
-  const cleanContent = (content: string): string => {
-    return content
+  const cleanContent = (raw: string): string => {
+    return raw
+      .trim();
   };
+
 
   const fetchDetailedNews = async () => {
     if (!newsId) return;
@@ -65,7 +83,7 @@ export function DetailedNewsModal({
 
     const params = new URLSearchParams({ news_id: newsId });
     if (userId) params.append('user_id', userId);
-    
+
     fetchEventSource(`${API_BASE_URL}/api/news/detailed?${params}`, {
       headers: {
         'ngrok-skip-browser-warning': 'true',
@@ -74,14 +92,14 @@ export function DetailedNewsModal({
         console.log("💬", ev.data);
         setContent((prev) => {
           const newContent = prev + ev.data + '\n';
-          
+
           // Auto-scroll to bottom if user hasn't scrolled up
           setTimeout(() => {
             if (contentRef.current && !userScrolledRef.current) {
               contentRef.current.scrollTop = contentRef.current.scrollHeight;
             }
           }, 100); // Increased timeout for better scroll timing
-          
+
           return newContent;
         });
         setIsLoading(false);
@@ -216,7 +234,7 @@ export function DetailedNewsModal({
           ) : content ? (
             <div className="p-6">
               <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Full Article</h3>
-              <div 
+              <div
                 ref={contentRef}
                 className="prose dark:prose-invert max-w-none overflow-y-auto max-h-96"
                 onScroll={(e) => {
@@ -226,20 +244,7 @@ export function DetailedNewsModal({
                 }}
               >
                 <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg text-gray-700 dark:text-gray-300 prose prose-sm max-w-none">
-                  <ReactMarkdown 
-                    components={{
-                      p: ({children}) => <p className="mb-4 leading-relaxed">{children}</p>,
-                      h1: ({children}) => <h1 className="text-2xl font-bold mb-4">{children}</h1>,
-                      h2: ({children}) => <h2 className="text-xl font-semibold mb-3">{children}</h2>,
-                      h3: ({children}) => <h3 className="text-lg font-semibold mb-2">{children}</h3>,
-                      ul: ({children}) => <ul className="list-disc list-inside mb-4 space-y-1">{children}</ul>,
-                      ol: ({children}) => <ol className="list-decimal list-inside mb-4 space-y-1">{children}</ol>,
-                      li: ({children}) => <li className="ml-4">{children}</li>,
-                      blockquote: ({children}) => <blockquote className="border-l-4 border-gray-300 pl-4 italic mb-4">{children}</blockquote>,
-                      strong: ({children}) => <strong className="font-semibold">{children}</strong>,
-                      em: ({children}) => <em className="italic">{children}</em>,
-                    }}
-                  >
+                  <ReactMarkdown>
                     {cleanContent(content)}
                   </ReactMarkdown>
                 </div>
