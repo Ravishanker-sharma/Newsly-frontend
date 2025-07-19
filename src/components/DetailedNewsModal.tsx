@@ -1,14 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
-  ExternalLink,
-  Clock,
-  Calendar,
-  Tag,
-  Share2,
-  Bookmark,
+  ExternalLink
 } from 'lucide-react';
 import { LoadingSpinner } from './LoadingSpinner';
+import { fetchEventSource } from '@microsoft/fetch-event-source';
+import ReactMarkdown from 'react-markdown';
 
 interface DetailedNewsData {
   id: string;
@@ -36,94 +33,87 @@ export function DetailedNewsModal({
   userId,
 }: DetailedNewsModalProps) {
   const [newsData, setNewsData] = useState<DetailedNewsData | null>(null);
+  const [done, setDone] = useState<boolean>(false);
+  const [content, setContent] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isBookmarked, setIsBookmarked] = useState(false);
-
+  const contentRef = useRef<HTMLDivElement>(null);
+  const userScrolledRef = useRef(false);
   const hasFetchedRef = useRef(false);
+
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://4448578b27fc.ngrok-free.app';
 
   useEffect(() => {
     if (isOpen && newsId && !hasFetchedRef.current) {
       hasFetchedRef.current = true;
+      
+      // Reset state when modal opens
+      setContent('');
+      setDone(false);
+      setError(null);
+      setIsLoading(false);
+      
+      // Fetch data only once
       fetchDetailedNews();
     }
   }, [isOpen, newsId]);
 
   useEffect(() => {
     if (!isOpen) {
-      hasFetchedRef.current = false; // Reset when modal closes
+      hasFetchedRef.current = false;
     }
   }, [isOpen]);
 
+
+  // Clean content function to remove Python code blocks and format markdown
+  const cleanContent = (raw: string): string => {
+    return raw
+      .trim();
+  };
+
+
   const fetchDetailedNews = async () => {
+    if (!newsId) return;
+
     setIsLoading(true);
+    setContent('');
     setError(null);
+    userScrolledRef.current = false;
 
-    try {
-      const params = new URLSearchParams({ news_id: newsId });
-      if (userId) params.append('user_id', userId);
+    const params = new URLSearchParams({ news_id: newsId });
+    if (userId) params.append('user_id', userId);
 
-      const response = await fetch(`${API_BASE_URL}/api/news/detailed?${params}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
-        },
-      });
+    fetchEventSource(`${API_BASE_URL}/api/news/detailed?${params}`, {
+      headers: {
+        'ngrok-skip-browser-warning': 'true',
+      },
+      onmessage(ev) {
+        console.log("💬", ev.data);
+        setContent((prev) => {
+          const newContent = prev + ev.data + '\n';
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+          // Auto-scroll to bottom if user hasn't scrolled up
+          setTimeout(() => {
+            if (contentRef.current && !userScrolledRef.current) {
+              contentRef.current.scrollTop = contentRef.current.scrollHeight;
+            }
+          }, 100); // Increased timeout for better scroll timing
 
-      const data = await response.json();
-      setNewsData(data);
-    } catch (error) {
-      console.error('Failed to fetch detailed news:', error);
-      setError('Failed to load detailed news. Please try again.');
-
-      // Fallback mock data
-      setNewsData({
-        id: newsId,
-        headline: "Global Climate Summit Reaches Historic Agreement on Carbon Reduction",
-        fullContent: `In a groundbreaking development that could reshape the global response to climate change, world leaders at the International Climate Summit have reached a historic agreement on carbon reduction targets. The agreement, signed by representatives from 195 countries, commits nations to achieving a 50% reduction in carbon emissions by 2030.
-
-The summit, held in Geneva, Switzerland, brought together heads of state, environmental scientists, and policy experts for five days of intensive negotiations. The final agreement represents a significant step forward from previous climate accords, with binding commitments and clear enforcement mechanisms.
-
-Key provisions of the agreement include the establishment of a $100 billion international climate fund, breakthrough technology sharing initiatives, and specific timelines for implementation. Developing nations will receive additional support to facilitate their transition to renewable energy sources.
-
-Environmental groups have hailed the agreement as a "turning point" in the fight against climate change, while industry leaders are already announcing new investment plans in clean energy technologies. The agreement will take effect on January 1, 2025, with the first progress review scheduled for 2026.`,
-        imageUrl: "https://images.pexels.com/photos/60013/desert-drought-dehydrated-clay-soil-60013.jpeg",
-        sourceIconUrl: "https://www.reuters.com/business/environment/climate-summit-2024/",
-        source: "Reuters",
-        type: "Breaking News",
-        publishedAt: "2024-01-15T08:30:00Z",
-        readTime: 4,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleShare = async () => {
-    if (navigator.share && newsData) {
-      try {
-        await navigator.share({
-          title: newsData.headline,
-          text: newsData.headline,
-          url: newsData.sourceIconUrl,
+          return newContent;
         });
-      } catch (error) {
-        console.log('Share failed:', error);
-      }
-    } else if (newsData) {
-      navigator.clipboard.writeText(newsData.sourceIconUrl);
-    }
-  };
-
-  const handleBookmark = () => {
-    setIsBookmarked(!isBookmarked);
+        setIsLoading(false);
+      },
+      onerror(err) {
+        console.error('Stream error', err);
+        setError('Failed to load detailed news. Please try again.');
+        setIsLoading(false);
+      },
+      onclose() {
+        console.log("✅ Stream closed");
+        setIsLoading(false);
+      },
+    });
   };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
@@ -144,27 +134,27 @@ Environmental groups have hailed the agreement as a "turning point" in the fight
 
   if (!isOpen) return null;
   // 🚫 If guest, block access to detailed view
-if (isOpen && userId?.startsWith('guest_')) {
-  return (
-    <div
-      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-      onClick={handleBackdropClick}
-    >
-      <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-md p-6 shadow-xl border border-gray-200 dark:border-gray-700 text-center space-y-4">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Unlock Full Article</h2>
-        <p className="text-gray-600 dark:text-gray-400">
-          To view the complete news coverage, please sign in with your Google account.
-        </p>
-        <button
-          onClick={onClose}
-          className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-        >
-          Close
-        </button>
+  if (isOpen && userId?.startsWith('guest_')) {
+    return (
+      <div
+        className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+        onClick={handleBackdropClick}
+      >
+        <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-md p-6 shadow-xl border border-gray-200 dark:border-gray-700 text-center space-y-4">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Unlock Full Article</h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            To view the complete news coverage, please sign in with your Google account.
+          </p>
+          <button
+            onClick={onClose}
+            className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            Close
+          </button>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
 
   return (
@@ -221,11 +211,12 @@ if (isOpen && userId?.startsWith('guest_')) {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
-          {isLoading ? (
+          {isLoading && !content ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
                 <LoadingSpinner size="lg" className="mx-auto mb-4" />
                 <p className="text-gray-600 dark:text-gray-400">⚡ AI at work – please wait...</p>
+                <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">Waiting for first chunk...</p>
               </div>
             </div>
           ) : error ? (
@@ -240,66 +231,22 @@ if (isOpen && userId?.startsWith('guest_')) {
                 </button>
               </div>
             </div>
-          ) : newsData ? (
-            <div className="p-6 space-y-6">
-              {/* Article Header */}
-              <div className="space-y-4">
-                <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
-                  <div className="flex items-center space-x-1">
-                    <Tag className="w-4 h-4" />
-                    <span className="bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-md font-medium">
-                      {newsData.type}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Calendar className="w-4 h-4" />
-                    <span>{formatDate(newsData.publishedAt)}</span>
-                  </div>
-                  {newsData.readTime && (
-                    <div className="flex items-center space-x-1">
-                      <Clock className="w-4 h-4" />
-                      <span>{newsData.readTime} min read</span>
-                    </div>
-                  )}
-                </div>
-
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white leading-tight">
-                  {newsData.headline}
-                </h1>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-blue-600 dark:text-blue-400 font-medium">{newsData.source}</span>
-
-                  <a
-                    href={newsData.sourceIconUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-                  >
-                    <span className="text-sm">View Original</span>
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                </div>
-              </div>
-
-              {/* Featured Image */}
-              <div className="rounded-lg overflow-hidden">
-                <img
-                  src={newsData.imageUrl}
-                  alt={newsData.headline}
-                  className="w-full h-300 object-cover"
-                />
-              </div>
-
-              {/* Full Content */}
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Full Article</h3>
-                <div className="prose dark:prose-invert max-w-none">
-                  {newsData.fullContent.split('\n\n').map((paragraph: string, index: number) => (
-                    <p key={index} className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
-                      {paragraph}
-                    </p>
-                  ))}
+          ) : content ? (
+            <div className="p-6">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Full Article</h3>
+              <div
+                ref={contentRef}
+                className="prose dark:prose-invert max-w-none overflow-y-auto max-h-96"
+                onScroll={(e) => {
+                  const target = e.target as HTMLDivElement;
+                  const isAtBottom = target.scrollHeight - target.scrollTop <= target.clientHeight + 10;
+                  userScrolledRef.current = !isAtBottom;
+                }}
+              >
+                <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg text-gray-700 dark:text-gray-300 prose prose-sm max-w-none">
+                  <ReactMarkdown>
+                    {cleanContent(content)}
+                  </ReactMarkdown>
                 </div>
               </div>
             </div>
